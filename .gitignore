@@ -1,0 +1,16 @@
+# IntelliJ
+.idea/
+*.iml
+
+# Compilation
+out/
+bin/
+*.class
+
+# Divers
+*.log
+*.tmp
+.DS_STORE
+
+# Perso
+vrac/

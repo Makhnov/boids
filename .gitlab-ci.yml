@@ -1,0 +1,119 @@
+# GitLab CI Configuration for SOO Simulator Project
+#
+# This configuration:
+# 1. Builds the project (compile source + tests)
+# 2. Runs tests in parallel (Conway, Immigration, Schelling, Boids)
+# 3. Caches compiled files between jobs
+# 4. Saves test artifacts for debugging
+#
+
+stages:
+  - build
+  - test
+
+variables:
+  # Set display for virtual X server
+  DISPLAY: ":99"
+
+# Default configuration for all jobs
+default:
+  image: eclipse-temurin:25-jdk-jammy  # Ubuntu 22.04 with Java 25
+  before_script:
+    # Install make and Xvfb (virtual display server for GUI tests)
+    - apt-get update -qq
+    - apt-get install -y -qq make xvfb libxext6 libxrender1 libxtst6 libxi6
+    # Start virtual X server in background
+    - Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+    - echo "DISPLAY is $DISPLAY"
+    - sleep 3  # Give Xvfb time to start
+
+# Cache compiled files and dependencies between jobs
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - bin/
+    - out/
+
+# Build job - compile source and tests
+build:
+  stage: build
+  script:
+    - java -version
+    - javac -version
+    - make clean
+    - make compile
+    - make compile-test
+  artifacts:
+    paths:
+      - bin/
+      - out/test/
+      - lib/
+    expire_in: 1 hour
+
+# Run all tests together
+test-all:
+  stage: test
+  needs: ["build"] # Wait for build job to finish
+  script:
+    - make test
+  artifacts:
+    when: always
+    paths:
+      - out/
+    expire_in: 3 days
+
+# Individual test jobs (run in parallel)
+test-entities:
+  stage: test
+  needs: ["build"] # Wait for build job to finish
+  script:
+    - make test-entities
+  artifacts:
+    when: always
+    paths:
+      - out/
+    expire_in: 1 day
+
+test-conway:
+  stage: test
+  needs: ["build"] # Wait for build job to finish
+  script:
+    - make test-conway
+  artifacts:
+    when: always
+    paths:
+      - out/
+    expire_in: 1 day
+
+test-immigration:
+  stage: test
+  needs: ["build"]  # Wait for build job to finish
+  script:
+    - make test-immigration
+  artifacts:
+    when: always
+    paths:
+      - out/
+    expire_in: 1 day
+
+test-schelling:
+  stage: test
+  needs: ["build"] # Wait for build job to finish
+  script:
+    - make test-schelling
+  artifacts:
+    when: always
+    paths:
+      - out/
+    expire_in: 1 day
+
+test-boids:
+  stage: test
+  needs: ["build"] # Wait for build job to finish
+  script:
+    - make test-boids
+  artifacts:
+    when: always
+    paths:
+      - out/
+    expire_in: 1 day

@@ -1,0 +1,256 @@
+@startuml
+
+skinparam linetype ortho
+hide methods
+'hide attributes
+'hide circle
+'hide UI
+'hide World
+
+'hide public methods
+
+package UI {
+  interface Simulable {
+    + next()
+    + restart()
+  }
+
+  class GUISimulator {
+    + setSimulable(s: Simulable)
+    ' (impl. fournie dans le sujet : addGraphicalElement(...), etc.)
+  }
+
+  class ArenaFrame extends JFrame {
+    - cards: CardLayout
+    - root: JPanel
+
+    + ArenaFrame()
+    + buildWelcome()
+    - buildMenu()
+  }
+
+  class UiKit {
+    + primary(text: String)
+    + secondaryDisabled(text: String)
+    + ghost(text: String)
+  }
+
+  class GuiWindows {
+    + closeAllSimulators()
+  }
+}
+
+package Core {
+  abstract class Simulator implements UI.Simulable {
+    # gui: UI.GUISimulator
+    # B: World.Board
+    # entities: Entities.Entity[]  ' tableau 1D d'entities
+
+    + play()
+    + next()          ' final dans l’idée : stepOnce()
+    + restart()       ' final dans l’idée : appelle reset(); draw()
+    + stepOnce()      ' final : appelle update(); draw();
+    + getBoard(): World.Board
+
+    # update()
+    # draw()
+    # reset()
+    # toIndex(r:int, c:int): int
+    # wrapRow(r:int): int
+    # wrapCol(c:int): int
+    - scaling()
+  }
+  
+  abstract class Event {
+    - date: long
+
+    + Event(date: long): void
+    + getDate(): long
+    + execute(): void
+  }
+
+  class EventManager {
+    - currentDate: long
+    - priorityQueue: PriorityQueue
+
+    + addEvent(): void
+    + next(): void
+    + isFinished(): boolean
+    + restart(): boolean
+    + getCurrentDate():
+  }
+}
+
+package Systems {
+  abstract class GridSimulator extends Core.Simulator {
+    + aliveColor: Color
+    + deadColor: Color
+    + nbState: int
+    + coverage: int
+    # seeding: SeedingStrategy
+
+    + GridSimulator(width, height, rows, cols, nbState, bgColor, coverage)
+
+    + setState(int, int, int)
+    + getState(int, int): int
+    + getNbState(): int
+    + getRow(): int
+    + getCol(): int
+
+    # getNeighbors(e: Cell): List<Cell>
+    # similarNeighbors(e: Cell, state: int): int
+    # similarNeighbors(e: Cell, color: Color): int
+  }
+
+  class ConwaySimulator extends GridSimulator {
+    + ConwaySimulator(...)
+    + update()
+  }
+
+  class ImmigrationSimulator extends GridSimulator {
+    + ImmigrationSimulator(...)
+    + update()
+  }
+
+  class SchellingSimulator extends GridSimulator {
+    # K: int
+    # c: Color[]
+
+    + SchellingSimulator(...)
+    # initColor(e: Cell)
+    + update()
+  }
+  
+  class BallsSimulator extends Core.Simulator {
+    - nbBalls: int
+
+    + BallsSimulator(w: int, h: int, n: int, size: int)
+    # update()
+    # init()
+    + draw()
+    + reset()
+    # clear()
+  }
+
+  class BoidsSimulator extends Core.Simulator {
+    ...
+    + BoidsSimulator(...)
+
+    + update()
+    + draw()
+    + reset()
+  }
+}
+
+package World {
+  class Board {
+    # size: int
+    # boundMode
+    # margin[...]
+
+    + get[...](): int
+    + set[...](): int
+    + draw(gui: UI.GUISimulator)
+  }
+
+  class Grid extends Board {
+    + rows: int
+    + cols: int
+    + Grid(...)
+    + draw(gui: GUISimulator, rows: int, cols: int)
+  }
+
+  class Space extends Board {
+    + Space()
+    + draw(gui: GUISimulator, rows: int, cols: int)
+  }
+}
+
+package Entities {
+  class Cell extends Entity {
+    - state: int
+
+    + Cell(x: int, y:int)
+    + getState(): int
+    + setState(s: int): void
+    + isAlive(): boolean
+    + init_entity(gui: GUISimulator): void
+    + draw(): void
+  }
+
+  class Particle extends Entity {
+    + vx: int
+    + vy: int
+    + ay: int
+    + ax: int
+
+    + init_entity(): void
+    + draw(gui: UI.GUISimulator): void
+  }
+
+  class Boid extends Entity {
+     ... 
+  }
+
+  class Fish extends Boid {
+      ...
+  }
+
+  class Shark extends Boid {
+      ...
+  }
+
+  class Octopus extends Boid {
+      ...
+  }
+
+  
+  class Entity {
+    # dot: Point
+    # colot: Color
+    # size: int
+    
+    + Entity(p: Point): void
+    + getX(): int
+    + getY(): int
+    + setPosition(x:int, y:int): void
+    + getColor(): Color
+    + setColor(c: Color)
+    + draw(gui: UI.GUISimulator): void
+  }
+}
+
+
+' ===== Relations principales =====
+UI.Simulable <-- "1"  UI.GUISimulator
+Core.Simulator *-- "1" UI.GUISimulator
+
+' Compositions
+UI.UiKit *-- UI.ArenaFrame
+UI.GuiWindows *-- UI.ArenaFrame
+UI.GradientPanel *-- UI.GuiWindows
+Core.Event *-- Core.EventManager
+Systems.BoidsSimulator *-- Core.EventManager
+
+Systems *-- UI.ArenaFrame
+
+' Systems ↔ Board (1..1) : la topologie est détenue par le simulateur principal
+Systems.BallsSimulator *-- "1" World.Space
+Systems.BoidsSimulator *-- World.Space
+Systems.ConwaySimulator *--  World.Grid
+Systems.ImmigrationSimulator *-- "1" World.Grid
+Systems.SchellingSimulator *--  World.Grid
+
+' Systems ↔ Entities : le simulateur tient le tableau 1D d'entités
+Systems.BallsSimulator *-- "0..n" Entities.Particle
+Systems.BoidsSimulator *-- Entities.Particle
+Systems.ConwaySimulator *-- Entities.Cell
+Systems.ImmigrationSimulator *-- Entities.Cell
+Systems.SchellingSimulator *-- "1..*" Entities.Cell
+
+' Hiddens (mise en page)
+Systems -[hidden]-> World
+Systems -[hidden]-> Entities
+
+@enduml
+

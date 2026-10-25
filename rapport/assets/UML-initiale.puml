@@ -1,0 +1,164 @@
+@startuml
+
+skinparam linetype ortho
+
+package UI {
+  interface Simulable {
+    +next()
+    +restart()
+  }
+
+  class GUISimulator {
+    +setSimulable(s: Simulable)
+    ' (impl. fournie dans le sujet : addGraphicalElement(...), etc.)
+  }
+}
+
+package Core {
+  abstract class MainSimulator implements UI.Simulable {
+    - gui: UI.GUISimulator
+    - board: World.Board
+    - entities: Entities.Entity[]  
+
+    +play()
+    +next()          
+    +restart()       
+
+    #update()
+    #draw()
+    #reset()
+
+    +getBoard(): World.Board
+  }
+
+  ' === Intermédiaires spécialisés (factorisation par topologie) ===
+  abstract class GridSimulator extends Core.MainSimulator {
+    - grid: World.Grid
+    - cellSize: int
+
+    +updateCellSize()
+    +toIndex(r:int, c:int): int
+    +wrapRow(r:int): int
+    +wrapCol(c:int): int
+
+    #getNeighbors(e: Entities.Entity): List<Entities.Entity>   
+  }
+
+  abstract class SpaceSimulator extends Core.MainSimulator {
+    - space: World.Space
+    ' (pas d’API de voisinage imposée)
+  }
+}
+
+package Systems {
+  class BallsSimulator extends Core.SpaceSimulator {
+    +update()
+    +draw()
+    +reset()
+  }
+
+  class LifeSimulator extends Core.GridSimulator {
+    +update()
+    +draw()
+    +reset()
+  }
+
+  class ImmigrationSimulator extends Core.GridSimulator {
+    +update()
+    +draw()
+    +reset()
+  }
+
+  class SchellingSimulator extends Core.GridSimulator {
+    +update()
+    +draw()
+    +reset()
+  }
+
+  class BoidsSimulator extends Core.SpaceSimulator {
+    +update()
+    +draw()
+    +reset()
+  }
+}
+
+package World {
+  class Board {
+    - width: int
+    - height: int
+    - backgroundColor: Color
+
+    +getWidth(): int
+    +getHeight(): int
+    +getBackgroundColor(): Color
+    +drawBoard(gui: UI.GUISimulator)    
+  }
+
+  class Grid extends Board {
+    +rows: int
+    +cols: int
+    +wrapRow(r:int): int
+    +wrapCol(c:int): int
+    +inBounds(r:int, c:int): boolean
+    ' Topologie uniquement (aucun état de cellules ici)
+  }
+
+  class Space extends Board {
+    +wrap: boolean
+    +bounce: boolean
+    ' Topologie continue/politiques de bord (aucune particule stockée ici)
+  }
+}
+
+package Entities {
+  class Entity {
+    - id: int
+    - x: int
+    - y: int
+    - color: Color
+
+    +getX(): int
+    +getY(): int
+    +setPosition(x:int, y:int)
+    +getColor(): Color
+    +setColor(c: Color)
+
+    +afficheEntity(gui: UI.GUISimulator)  
+  }
+
+  class Cell extends Entity {
+    +afficheEntity(gui: UI.GUISimulator)
+  }
+
+  class Particle extends Entity {
+    +vx: int
+    +vy: int
+    +afficheEntity(gui: UI.GUISimulator)
+  }
+}
+
+
+' ===== Relations principales =====
+UI.Simulable <-- "1"  UI.GUISimulator
+Core.MainSimulator *-- "1" UI.GUISimulator
+
+' Systems ↔ Board (1..1) : la topologie est détenue par le simulateur principal
+Systems.BallsSimulator *-- "1" World.Space
+Systems.BoidsSimulator *-- World.Space
+Systems.LifeSimulator *--  World.Grid
+Systems.ImmigrationSimulator *-- "1" World.Grid
+Systems.SchellingSimulator *--  World.Grid
+
+' Systems ↔ Entities : le simulateur tient le tableau 1D d'entités
+Systems.BallsSimulator *-- "0..n" Entities.Particle
+Systems.BoidsSimulator *-- Entities.Particle
+Systems.LifeSimulator *-- Entities.Cell
+Systems.ImmigrationSimulator *-- Entities.Cell
+Systems.SchellingSimulator *-- "1..*" Entities.Cell
+
+' Hiddens (mise en page)
+Systems -[hidden]-> World
+Systems -[hidden]-> Entities
+
+@enduml
+
